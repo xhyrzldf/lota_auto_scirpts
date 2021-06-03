@@ -4,41 +4,34 @@ import requests
 import io
 import time
 import re
+import pandas as pd
+import sys
+from lota_class import Equipment, ShopEquipment, HexEquipment
 from PIL import Image
 from requests_toolbelt import MultipartEncoder
 
-need_array = ['全知', '幻寂', '赛丽', '隐之', '创世', '遮面']
 talent_count = 1
 
+eqs = []
+shop_eq = {}
 
-class Equipment:
-    """装备类"""
+# 读取要购买的装备清单 成为一个dict
+reader = pd.read_csv("mage.csv", header=None, sep=',')
+print(reader)
 
-    def __init__(self, eq_type, name, level):
-        self.eq_type = eq_type
-        self.name = name
-        self.level = level
+for index, row in reader.iterrows():
+    shop_eq[row[1]] = ShopEquipment(row[1], row[0], row[2], 0, row[3])
 
-    def __str__(self) -> str:
-        return str(self.eq_type) + " " + self.name + " " + str(self.level)
 
-    def is_need(self):
-        """判断这件装备是否需要(在装备列表里)"""
-        if self.level == 0:
-            return True
-
-        if self.level <= 60:
-            return False
-
-        for n in need_array:
-            if n in self.name:
-                return True
-        return False
+def get_color(x, y):
+    screenshot = pg.screenshot()
+    r, g, b = screenshot.getpixel((x, y))
+    return '#{:02x}{:02x}{:02x}'.format(r, g, b)
 
 
 def parse(x, y, xw, yh, compress):
     img = pg.screenshot(region=[x, y, xw - x, yh - y])  # x,y,w,h
-    # img.save('F:/images/1.jpeg')
+    img.save('F:/images/1.jpeg')
     img_byte_arr = io.BytesIO()
     img.save(img_byte_arr, format='jpeg')
     img_byte_arr = img_byte_arr.getvalue()
@@ -184,14 +177,27 @@ def handle_window():
         pg.leftClick(1783, 52)
 
 
-if __name__ == '__main__':
+def handle_shopping():
+    while True:
+        current_money = int(parse(2256, 1279, 2362, 1316, 250))
+        if current_money < 2500:
+            break
+        # 购买装备 按D键
+        pg.leftClick(2205, 1379)
+        buy_equipment_pos()
+
+
+def handle_45():
     time.sleep(3)
     while True:
-        # 是否是结算界面 1342,1065,1404,1095 queding 1250,1082
+        # 是否是结算界面 1342,1065,1404,1095
         if parse(1342, 1065, 1404, 1095, 500) == '确定':
             print('进入结算界面')
+            for e in shop_eq.values():
+                e.reset()
             pg.click(1250, 1082, 4, 0.5, button='left')
             pg.leftClick(1367, 1079)
+
         # 是否是初始界面
         while True:
             if parse(1222, 105, 1277, 137, 500) == '战斗':
@@ -236,3 +242,69 @@ if __name__ == '__main__':
             handle_rewards()
 
         time.sleep(5)
+
+
+def buy_equipment_pos():
+    # 读取装备信息 装备名 以及对应位置上的颜色 636,466 1042,466 1448,466 406
+    pos1x = 664
+    pos1y = 618
+    pos2x = 664 + 406 * 1
+    pos2y = 618
+    pos3x = 664 + 406 * 2
+    pos3y = 618
+    pos4x = 664 + 406 * 3
+    pos4y = 618
+
+    pos1_hex = get_color(pos1x, pos1y)
+    pos2_hex = get_color(pos2x, pos2y)
+    pos3_hex = get_color(pos3x, pos3y)
+    pos4_hex = get_color(pos4x, pos4y)
+
+    max_pri = 0
+    pos_final = 0
+
+    if pos1_hex in shop_eq.keys():
+        eq1 = shop_eq[pos1_hex]
+        if eq1.priority > max_pri:
+            if eq1.actual_owned < 4:
+                max_pri = eq1.priority
+                pos_final = 1
+
+    if pos2_hex in shop_eq.keys():
+        eq2 = shop_eq[pos2_hex]
+        if eq2.priority > max_pri:
+            if eq2.actual_owned < 4:
+                max_pri = eq2.priority
+                pos_final = 2
+
+    if pos3_hex in shop_eq.keys():
+        eq3 = shop_eq[pos3_hex]
+        if eq3.priority > max_pri:
+            if eq3.actual_owned < 4:
+                max_pri = eq3.priority
+                pos_final = 3
+
+    if pos4_hex in shop_eq.keys():
+        eq4 = shop_eq[pos4_hex]
+        if eq4.priority > max_pri:
+            if eq4.actual_owned < 4:
+                max_pri = eq4.priority
+                pos_final = 4
+
+    if pos_final == 1:
+        shop_eq[pos1_hex].actual_owned += 1
+        pg.leftClick(636, 466)
+    elif pos_final == 2:
+        shop_eq[pos2_hex].actual_owned += 1
+        pg.leftClick(1042, 466)
+    elif pos_final == 3:
+        shop_eq[pos3_hex].actual_owned += 1
+        pg.leftClick(1448, 466)
+    elif pos_final == 4:
+        shop_eq[pos4_hex].actual_owned += 1
+        pg.leftClick(1854, 466)
+
+
+if __name__ == '__main__':
+    time.sleep(3)
+    handle_45()
