@@ -38,16 +38,16 @@ class Equipment:
 
 def parse(x, y, xw, yh, compress):
     img = pg.screenshot(region=[x, y, xw - x, yh - y])  # x,y,w,h
-    img.save('F:/images/1.jpeg')
-    imgByteArr = io.BytesIO()
-    img.save(imgByteArr, format='jpeg')
-    imgByteArr = imgByteArr.getvalue()
+    # img.save('F:/images/1.jpeg')
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format='jpeg')
+    img_byte_arr = img_byte_arr.getvalue()
 
     url = "http://192.168.1.105:8089/api/tr-run/"
 
     payload = {'compress': compress}
     files = [
-        ('file', ('1.jpeg', imgByteArr, 'image/jpeg'))
+        ('file', ('1.jpeg', img_byte_arr, 'image/jpeg'))
     ]
     headers = {}
 
@@ -69,11 +69,14 @@ def parse(x, y, xw, yh, compress):
 
 def generate_equipment(suit_string, level_string: str):
     try:
-        level_number = int(level_string)
+        if level_string == 'empty':
+            level_number = 0
+        else:
+            level_number = int(level_string)
     except Exception as ex:
         print('数字处理异常')
         print(ex)
-        level_number = 0
+        level_number = 1
 
     if '套装' in suit_string:
         return Equipment(1, suit_string, level_number)
@@ -101,7 +104,6 @@ def handle_equipment():
             # 生成装备对象
             suit_string = parse(mid_x + 547, mid_y + 73, mid_x + 848, mid_y + 118, 300)
             level_string = parse(mid_x - 49, mid_y, mid_x - 23, mid_y + 32, 400)
-            print(suit_string + level_string)
             equipment = generate_equipment(suit_string, level_string)
             # 根据装备对象来判断是否分解
             # type = 0 直接分解
@@ -152,14 +154,15 @@ def handle_talent():
                     pg.tripleClick(696, 614)  # 杀怪加属性
                 elif talent_count == 8:
                     pg.tripleClick(1081, 743)  # 加爆率
-
+                else:
+                    pg.leftClick(450, 1369)  # 关闭页面
+                    break
                 talent_count = talent_count + 1
                 pg.leftClick(450, 1369)  # 关闭页面
             else:
                 break
     except Exception as ex:
         print(ex)
-        return 0
 
 
 def handle_challenge():
@@ -207,10 +210,15 @@ if __name__ == '__main__':
         # 根据当前分钟数执行逻辑
         time_string = parse(1354, 4, 1393, 35, 450)
         current_time = 0
-        if time_string == 'empty':
+        try:
+            if time_string == 'empty':
+                current_time = 0
+            else:
+                current_time = int(time_string)
+        except Exception as ex:
+            print('处理时间时出现异常')
+            print(ex)
             current_time = 0
-        else:
-            current_time = int(time_string)
         print('当前的时间为：' + str(current_time))
         if current_time == 14 or current_time == 11 or current_time == 7 or current_time == 3:
             handle_challenge()
@@ -227,4 +235,4 @@ if __name__ == '__main__':
             handle_talent()
             handle_rewards()
 
-        time.sleep(3)
+        time.sleep(5)
